@@ -44,10 +44,10 @@ CUDA_DEVICE_ORDER=PCI_BUS_ID CUDA_VISIBLE_DEVICES=0 "$cuda/extras/demo_suite/ban
 ```
 
 ```bash
-"$py" bench/ds41-flash/profile.py serve
+"$py" bench/ds41-flash/profile.py serve --require-idle-gpus
 ```
 
-The launch maps the approved `--gpus 0,1 --context 524288 --parallel 1 --drafting on` settings to the server GPU list and native engine flags. It listens on `127.0.0.1:8080`. Record startup from process launch to readiness and confirm the log reports context, vision and DSpark. Use the same run directory across the slot restart. Use a fresh run directory for each control, candidate and concurrency test.
+The launch maps the approved `--gpus 0,1 --context 524288 --parallel 1 --drafting on` settings to the server GPU list and native engine flags. The idle preflight checks for CUDA processes on the selected GPUs before launch. The server listens on `127.0.0.1:8080`. Record startup from process launch to readiness and confirm the log reports context, vision and DSpark. Use the same run directory across the slot restart. Use a fresh run directory for each control, candidate and concurrency test.
 
 From a second terminal with the same `work` and `py` definitions, run the Anthropic-compatible HTTP tests and save the JSONL evidence on scratch.
 

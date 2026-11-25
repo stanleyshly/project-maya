@@ -92,6 +92,30 @@ def prepare(weights, pack):
     check_pack(pack)
 
 
+def require_idle_gpus(device_indices):
+    """Refuse a timing launch while a selected GPU has a CUDA process."""
+    def query(*args):
+        return subprocess.check_output(
+            ["nvidia-smi", *args, "--format=csv,noheader,nounits"], text=True
+        ).splitlines()
+
+    devices = {
+        int(index): uuid.strip()
+        for index, uuid in (row.split(",", 1) for row in query("--query-gpu=index,uuid"))
+    }
+    missing = set(device_indices) - devices.keys()
+    if missing:
+        raise SystemExit(f"Benchmark GPUs unavailable: {sorted(missing)}")
+    selected = {devices[index]: index for index in device_indices}
+    busy = []
+    for row in query("--query-compute-apps=gpu_uuid,pid"):
+        uuid, pid = (field.strip() for field in row.split(",", 1))
+        if uuid in selected:
+            busy.append(f"GPU {selected[uuid]} (PID {pid})")
+    if busy:
+        raise SystemExit("Benchmark needs idle GPUs: " + ", ".join(busy))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("prepare", "configure", "serve"))
@@ -101,6 +125,7 @@ def main():
     parser.add_argument("--exe", type=Path)
     parser.add_argument("--parallel", type=int, choices=(1, 2), default=1)
     parser.add_argument("--port", type=int, default=8080)
+    parser.add_argument("--require-idle-gpus", action="store_true")
     parser.add_argument("--draft-cost", action="store_true")
     parser.add_argument("--vram-experts", type=float)
     parser.add_argument("--prefill-chunk", type=int)
@@ -113,7 +138,10 @@ def main():
     build = "build" if args.variant == "stock" else "build-source"
     run_name = "baseline" if args.variant == "stock" else "source"
     engine = (args.exe or WORK / build / "maya-ds4").resolve()
+    settings = json.loads(Path(__file__).with_name("maya-stock.json").read_text())
     if args.action == "serve":
+        if args.require_idle_gpus:
+            require_idle_gpus(settings["gpu"])
         check_pack(pack)
         if not os.access(engine, os.X_OK) or not engine.is_file():
             raise SystemExit(f"Engine executable unavailable: {engine}")
@@ -121,7 +149,6 @@ def main():
     slots = run / "slots"
     slots.mkdir(parents=True, exist_ok=True)
     config = run / "maya-ds4.json"
-    settings = json.loads(Path(__file__).with_name("maya-stock.json").read_text())
     engine_args = settings["args"]
     engine_args[engine_args.index("--pack") + 1] = str(pack)
     engine_args[engine_args.index("--parallel") + 1] = str(args.parallel)
