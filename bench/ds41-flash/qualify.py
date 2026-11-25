@@ -212,14 +212,15 @@ def soak(client, parallel):
                               "output_tokens_per_wall_second": tokens / elapsed}), flush=True)
 
 
-def archive(client, state_path):
+def archive(client, state_path, leave_active):
     text, needle = retrieval_prompt(client, 523264, 0)
     blocks, usage, _ = client.call("archive-near-full", [user(text)], limit=256)
     require(visible(blocks) == needle, "near-full archive retrieval failed")
     state = {"text": text, "needle": needle, "prefix": usage["input_tokens"] + usage["cache_read_input_tokens"],
              "assistant": blocks}
     state_path.write_text(json.dumps(state))
-    client.call("archive-interleave", [user(session(101) + "\nReply only OK.")])
+    if not leave_active:
+        client.call("archive-interleave", [user(session(101) + "\nReply only OK.")])
 
 
 def restore_long(client, state_path):
@@ -240,6 +241,8 @@ def main():
     parser.add_argument("--parallel", type=int, choices=(1, 2), default=1)
     parser.add_argument("--case", type=int, default=9)
     parser.add_argument("--state", type=Path, help="scratch file for archive and restore-long")
+    parser.add_argument("--leave-active", action="store_true",
+                        help="for archive, keep the long session active until graceful shutdown")
     args = parser.parse_args()
     if args.check in ("archive", "restore-long") and args.state is None:
         parser.error("--state is required for this check")
@@ -255,7 +258,7 @@ def main():
     elif args.check == "soak":
         soak(client, args.parallel)
     elif args.check == "archive":
-        archive(client, args.state)
+        archive(client, args.state, args.leave_active)
     elif args.check == "restore-long":
         restore_long(client, args.state)
     else:
