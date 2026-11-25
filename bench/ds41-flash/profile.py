@@ -7,6 +7,7 @@ import json
 import os
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -17,18 +18,14 @@ MANIFEST = json.loads((TOOLS / "download_gguf.json").read_text())
 QUANT = MANIFEST["quants"]["UD-Q8_K_XL"]
 
 
-def verify(directory, files):
-    for name, (size, expected) in files.items():
-        path = directory / name
-        if not path.is_file() or path.stat().st_size != size:
-            raise SystemExit(f"Missing file or wrong size: {path}")
-        digest = hashlib.sha256()
-        with path.open("rb") as source:
-            for chunk in iter(lambda: source.read(8 << 20), b""):
-                digest.update(chunk)
-        if digest.hexdigest() != expected:
-            raise SystemExit(f"SHA-256 mismatch: {path}")
-        print(f"Verified {path}", flush=True)
+def verify_file(path, expected):
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(8 << 20), b""):
+            digest.update(chunk)
+    if digest.hexdigest() != expected:
+        raise SystemExit(f"SHA-256 mismatch: {path}")
+    print(f"Verified {path}", flush=True)
 
 
 def check_pack(pack):
@@ -70,9 +67,18 @@ def check_pack(pack):
 
 def prepare(weights, pack):
     mmproj = MANIFEST["vision"]["mmproj"]["files"]
-    verify(weights, QUANT["files"])
-    verify(weights, mmproj)
-    verify(weights / "dspark", MANIFEST["drafter"]["files"])
+    inputs = [(directory / name, size, digest)
+              for directory, files in ((weights, QUANT["files"]), (weights, mmproj),
+                                       (weights / "dspark", MANIFEST["drafter"]["files"]))
+              for name, (size, digest) in files.items()]
+    for path, size, _ in inputs:
+        if not path.is_file() or path.stat().st_size != size:
+            raise SystemExit(f"Missing file or wrong size: {path}")
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        jobs = [pool.submit(verify_file, path, digest)
+                for path, _, digest in sorted(inputs, key=lambda item: -item[1])]
+        for job in jobs:
+            job.result()
     vision = weights / "vision"
     vision.mkdir(exist_ok=True)
     subprocess.run([sys.executable, str(TOOLS / "vision_pack.py"), "--dir", str(vision),
