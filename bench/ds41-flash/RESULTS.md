@@ -9,7 +9,7 @@
 | Peak GPU and RAM use | Sampled in shared smoke | Pending | Pending |
 | DSpark acceptance | Accepted drafts in shared smoke | Pending | Pending |
 | Vision, reasoning and tool round trip | Passed shared smoke | Pending | Pending |
-| Eight inactive RAM slots, disk spill and restart restore | RAM and in-run disk restore passed | Pending | Pending |
+| Eight inactive RAM slots, disk spill and restart restore | Passed at short context | Pending | Pending |
 | Exact half- and near-full-context retrieval and soak | Pending | Pending | Pending |
 | Greedy equivalence to stock | Reference | Pending | Pending |
 
@@ -31,6 +31,8 @@ The stock engine started with a 524,288-token limit and one active request while
 - Claude Code returned the expected `CHECKED` through the loopback endpoint. The client assumed a 1M window for the custom model ID; the runbook now sets its window explicitly to 524,288.
 - Sampled peak device memory was 80,981 MiB on GPU 0 and 80,871 MiB on GPU 1, including the other process and driver overhead. Sampled peak Maya engine RSS was 153.6 GiB.
 
-Logs are under `/scratch/ss3679/maya-ds41-tuning/shared-smoke`. Near-full-context retrieval, disk restore after restart, the modified-source runtime and parallel 2 remain pending.
+Logs are under `/scratch/ss3679/maya-ds41-tuning/shared-smoke`. A follow-up restart used the existing stock binary and a copy of the saved slot directory. It found 15 persisted conversations. The first request restored case 9 from disk, returned `KITE-09`, reused 2,584 tokens and read one new token. The streamed TTFT was 81 ms for this single short-context check. Evidence is in `/scratch/ss3679/maya-ds41-tuning/restart.4NReD0`.
+
+Near-full-context retrieval, near-full slot restore, the modified-source runtime and parallel 2 remain pending.
 
 Raw evidence, build outputs and the experiment ledger live under `/scratch/ss3679/maya-ds41-tuning`.
