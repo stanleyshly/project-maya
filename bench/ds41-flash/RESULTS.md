@@ -3,9 +3,9 @@
 | Metric or gate | Stock, parallel 1 | Modified source | Parallel 2 |
 | --- | --- | --- | --- |
 | CUDA build | Passed | Passed | Uses the selected engine |
-| Cold startup, prefill and TTFT | Shared smoke only | Pending | Pending |
+| Cold startup, prefill and TTFT | Shared-GPU timing below | Pending | Pending |
 | Warm resume TTFT and decode rate | Shared smoke only | Pending | Pending |
-| Sustained decode, six-prompt panel with up to 512 output tokens each | Pending idle GPUs | Pending | Pending |
+| Sustained decode, six-prompt panel with up to 512 output tokens each | 33.63 tok/s median, shared GPUs | Pending | Pending |
 | Peak GPU and RAM use | Sampled in shared smoke | Pending | Pending |
 | DSpark acceptance | Accepted drafts in shared smoke | Pending | Pending |
 | Vision, reasoning and tool round trip | Passed shared smoke | Pending | Pending |
@@ -36,3 +36,19 @@ Logs are under `/scratch/ss3679/maya-ds41-tuning/shared-smoke`. A follow-up rest
 Near-full-context retrieval, near-full slot restore, the modified-source runtime and parallel 2 remain pending.
 
 Raw evidence, build outputs and the experiment ledger live under `/scratch/ss3679/maya-ds41-tuning`.
+
+## Shared-GPU stock timing, 2026-11-25
+
+Stock Maya ran at high reasoning effort with vision and DSpark on and one active request. GPU 1 still held the 416 MiB CUDA context. These measurements describe that shared allocation.
+
+| Metric | Result |
+| --- | --- |
+| Launch to API readiness | 252.624 s |
+| Streamed short-prompt TTFT | 645.7 ms |
+| Single-request sustained decode | 33.63 tok/s median, 29.11–42.89 tok/s range, six 512-token completions |
+| Cold prefill and TTFT | 683.9 tok/s over 2,674 prompt tokens |
+| Cold prefill and TTFT | 1,500.4 tok/s over 20,594 prompt tokens |
+| Drafts kept across the six completions | 1,541 of 1,962, including prompt lookup |
+| Peak whole-device VRAM | 80,893 MiB on GPU 0 and 80,897 MiB on GPU 1 |
+
+The inference-optimisation harness measured text-stream timings and reported server token counts. The engine log confirmed the completion lengths and the two uncached prefill counts. Raw files are in `/scratch/ss3679/maya-ds41-tuning/stock-timing.vUrlGg`. Draft-cost tuning is underway. No candidate has been qualified.
