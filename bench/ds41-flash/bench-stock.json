@@ -1,0 +1,10 @@
+{
+  "name": "stock-parallel-1",
+  "base_url": "http://127.0.0.1:8080",
+  "model": "deepseek-v4.1-flash",
+  "temperature": 0,
+  "extra_body": {"enable_thinking": false},
+  "concurrency": 1,
+  "prefill_lengths": [4096, 32768],
+  "require_ac": true
+}

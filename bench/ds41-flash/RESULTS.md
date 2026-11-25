@@ -5,6 +5,7 @@
 | CUDA build | Passed | Passed | Uses the selected engine |
 | Cold startup, prefill and TTFT | Shared smoke only | Pending | Pending |
 | Warm resume TTFT and decode rate | Shared smoke only | Pending | Pending |
+| Sustained decode, six-prompt panel with up to 512 output tokens each | Pending idle GPUs | Pending | Pending |
 | Peak GPU and RAM use | Sampled in shared smoke | Pending | Pending |
 | DSpark acceptance | Accepted drafts in shared smoke | Pending | Pending |
 | Vision, reasoning and tool round trip | Passed shared smoke | Pending | Pending |

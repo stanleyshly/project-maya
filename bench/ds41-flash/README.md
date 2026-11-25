@@ -2,6 +2,8 @@
 
 The baseline serves Unsloth UD-Q8_K_XL through the same GGUF packer and runtime used by Maya's `gguf-q8` setup. The profile fixes context at 524,288 per request, chooses GPUs 0 and 1, and enables vision and DSpark. It defaults to one active request with eight inactive RAM slots. Maya's disk cache budget is 16 GiB and its newest single snapshot can exceed that budget. The baseline uses the engine's 1,024-token minimum slot length and leaves the optional byte limit off.
 
+The pinned pack uses BF16 dense weights, the checkpoint's native FP4 routed experts in MXFP4, and MXFP8 Engram. This profile treats preservation of the native routed-expert precision as equivalent to the requested Q8 path. It does not impose a uniform eight-bit tensor floor.
+
 ## Setup
 
 Run from the tuning checkout. Keep transfer files, builds, logs, caches and slot directories on scratch. Confirm free space before transfer using `df -B1 /scratch/ss3679`. Include all pinned downloads (517,282,101,293 bytes), output and temporary pack files, builds, and slot files, including snapshot replacement and Maya's 8 GiB free-space floor for slot writes. The full model is indexed in place.
@@ -61,7 +63,18 @@ Use a fresh slot run to verify eviction. Inspect `engine.log` after priming the 
 
 ## Timing and two-request qualification
 
-Run the pinned inference-optimisation `scripts/bench.py` against the loopback OpenAI endpoint with `--reps 6`. Set the config's model to `deepseek-v4.1-flash`, temperature to 0, and `extra_body` to `{"enable_thinking":false}`. Log the complete run config and server telemetry on scratch. Measure warm agent turns using the same seeded workload and `tools/ds4/agent_bench.py` with `--ctx 524288 --tp 2 --gpus 0,1 --dspark on --spec`, plus `--serial` for the single-request run. Use the server's draft counters to record accepted and offered tokens, and record GPU and host peaks, startup, cold prefill and TTFT, warm TTFT, and decode medians for each configuration.
+Run inference-optimisation at revision `fda968e7fc1996aa23c67139c755fe541c9d4be0` against the loopback OpenAI endpoint. Check for competing GPU jobs before launch and again after shutdown. Once Maya is ready, run the fixed six-prompt panel with up to 512 generated tokens per prompt.
+
+```bash
+repo=$PWD
+skill="$work/inference-optimisation/skills/inference-optimisation"
+(cd "$work" && "$py" "$skill/scripts/bench.py" run \
+  "$repo/bench/ds41-flash/bench-stock.json" --reps 6 --skip-cN)
+```
+
+Run the same unscored decode warmup for each server before measuring. Save the run config, server telemetry, six individual decode rates, and generated token counts on scratch. Inspect the engine logs for early stops and offered and accepted drafts. Require six usable sustained-decode samples of at least 128 generated tokens each before scoring a run. If the panel falls short, revise the workload and repeat it for both controls and the candidate. Report the median and range, and use the actual prompt token counts the harness reports for prefill. Keep the short smoke responses as correctness evidence.
+
+Measure warm agent turns using the same seeded workload and `tools/ds4/agent_bench.py` with `--ctx 524288 --tp 2 --gpus 0,1 --dspark on --spec`, plus `--serial` for the single-request run. Record GPU and host peaks, startup, cold prefill and TTFT, warm TTFT, and decode medians for each configuration.
 
 Run each control–candidate–control sequence serially with fresh slot directories and stable workloads. First try the profile's `--draft-cost`, then compare one expert placement change with `--vram-experts`, then try a single `--prefill-chunk` value relative to the chosen control. Record the engine-reported effective settings. Keep a change only if it beats both controls with no material regression. Compare greedy output tokens or complete streamed text under identical prompts for changes claimed to preserve output.
 
