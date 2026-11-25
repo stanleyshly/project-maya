@@ -30,7 +30,16 @@ Preparation verifies sizes and SHA-256 against Maya's manifest, then packs the c
 
 ## Baseline and API checks
 
-Check idle GPUs with `nvidia-smi` and NVLink with `nvidia-smi topo -m`. Coordinate an idle window before collecting timing data. Record GPU, RAM and clock telemetry throughout each run and capture host free memory and any competing processes before and after it. Run the bandwidth and BF16 GEMM probes before the server. Use the measured bandwidth of each memory tier and model tensor inventory to estimate decode and prefill ceilings.
+Check idle GPUs with `nvidia-smi` and NVLink with `nvidia-smi topo -m`. Coordinate an idle window before collecting timing data. Record GPU, RAM and clock telemetry throughout each run and capture host free memory and any competing processes before and after it. Run the bandwidth and BF16 GEMM probes before the server. Use the measured bandwidth of each memory tier and model tensor inventory to estimate decode and prefill ceilings. The following commands probe GPU 0. Change `CUDA_VISIBLE_DEVICES` to measure GPU 1 in the same way during the idle window.
+
+```bash
+cuda=/usr/local/cuda-12.6
+"$cuda/bin/nvcc" -O3 -arch=sm_80 bench/ds41-flash/bf16_gemm.cu \
+  -lcublas -Xlinker -rpath -Xlinker "$cuda/lib64" -o "$work/bf16_gemm"
+CUDA_DEVICE_ORDER=PCI_BUS_ID CUDA_VISIBLE_DEVICES=0 "$work/bf16_gemm"
+CUDA_DEVICE_ORDER=PCI_BUS_ID CUDA_VISIBLE_DEVICES=0 "$cuda/extras/demo_suite/bandwidthTest" \
+  --device=0 --mode=range --start=536870912 --end=536870912 --increment=1048576 --memory=pinned
+```
 
 ```bash
 "$py" bench/ds41-flash/profile.py serve

@@ -14,7 +14,7 @@
 
 The stock engine reports Maya 1.1.78, build `1530120a124e`. The two A100 PCIe 80 GB cards are connected by NV12. At intake, scratch had about 596 GB free. The pinned downloads total 517.28 GB.
 
-A GPU 0-only copy probe reported 1,528,465 MB/s device-to-device, 26,243 MB/s host-to-device and 25,781 MB/s device-to-host for 512 MiB pinned transfers. GPU 1 still held a separate CUDA process. Dual-card, NVLink and GEMM performance remain unmeasured.
+A GPU 0-only copy probe reported 1,528,465 MB/s device-to-device, 26,243 MB/s host-to-device and 25,781 MB/s device-to-host for 512 MiB pinned transfers. The GPU 0 BF16-input, FP32-accumulating 8,192³ cuBLAS GEMM averaged 3.728 ms across 20 timed iterations after five warm-ups, or 294.94 TFLOP/s. GPU 1 still held a separate CUDA process. Dual-card and NVLink performance remain unmeasured.
 
 The existing DeepSeek frontend, restore-point, vision, vision-cache, and tool-block suite ran 61 cases with 59 passing and two skipped. A synthetic pack-index check accepted the pinned layout and rejected Q6_K, the wrong table shard and either missing companion. These checks ran without a loaded model.
 
