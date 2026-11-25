@@ -148,10 +148,13 @@ def slots(client):
     require(usage["cache_read_input_tokens"] < 16, "diverged case reused stale state")
 
 
-def retrieval_prompt(client, target, lane):
+def retrieval_prompt(client, target, lane, soak=False):
     needle = f"ZEBRA-{target}-{lane}"
     lead = f"The secret retrieval code is {needle}.\n"
     tail = "\nReturn the secret retrieval code exactly, with no other text."
+    if soak:
+        tail = ("\nStart with the secret retrieval code on its own line. Then write eight paragraphs "
+                "about trees and forest ecology.")
     filler = " oak maple pine elm birch ash cedar lime yew beech."
     base = client.count(lead + tail)
     step = 1024
@@ -178,6 +181,37 @@ def retrieve(client, target, lane):
     require(visible(blocks) == needle, f"lane {lane}: exact retrieval failed")
 
 
+def soak_turn(client, text, needle, lane, turn, messages):
+    limit = 256
+    if turn == 0:
+        messages.append(user(text))
+    else:
+        messages.append(user("Start with the same code on its own line. Continue with further paragraphs."))
+    blocks, usage, _ = client.call(f"soak-{turn}-{lane}", messages, limit=limit)
+    require(visible(blocks).splitlines()[:1] == [needle], f"lane {lane}: soak returned the wrong code")
+    require(usage["output_tokens"] >= 64, f"lane {lane}: short soak answer")
+    require(usage["input_tokens"] + usage["cache_read_input_tokens"] >= 523200,
+            f"lane {lane}: soak ran below the target length")
+    if turn:
+        require(usage["cache_read_input_tokens"] >= 523200, f"lane {lane}: soak lost its cached prefix")
+    messages.append({"role": "assistant", "content": blocks})
+    return usage["output_tokens"]
+
+
+def soak(client, parallel):
+    fixtures = [retrieval_prompt(client, 523264, lane, soak=True) for lane in range(parallel)]
+    histories = [[] for _ in fixtures]
+    with ThreadPoolExecutor(max_workers=parallel) as pool:
+        for turn in range(3):
+            start = time.monotonic()
+            jobs = [pool.submit(soak_turn, client, text, needle, lane, turn, histories[lane])
+                    for lane, (text, needle) in enumerate(fixtures)]
+            tokens = sum(job.result() for job in jobs)
+            elapsed = time.monotonic() - start
+            print(json.dumps({"label": f"soak-{turn}-aggregate", "tokens": tokens, "elapsed_s": elapsed,
+                              "output_tokens_per_wall_second": tokens / elapsed}), flush=True)
+
+
 def archive(client, state_path):
     text, needle = retrieval_prompt(client, 523264, 0)
     blocks, usage, _ = client.call("archive-near-full", [user(text)], limit=256)
@@ -200,7 +234,8 @@ def restore_long(client, state_path):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("check", choices=("smoke", "image-cache", "slots", "restore", "retrieval", "archive", "restore-long"))
+    parser.add_argument("check", choices=("smoke", "image-cache", "slots", "restore", "retrieval", "soak",
+                                          "archive", "restore-long"))
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--parallel", type=int, choices=(1, 2), default=1)
     parser.add_argument("--case", type=int, default=9)
@@ -217,6 +252,8 @@ def main():
         slots(client)
     elif args.check == "restore":
         slot_turn(client, args.case)
+    elif args.check == "soak":
+        soak(client, args.parallel)
     elif args.check == "archive":
         archive(client, args.state)
     elif args.check == "restore-long":
