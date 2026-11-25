@@ -1,0 +1,27 @@
+{
+  "exe": "/scratch/ss3679/maya-ds41-tuning/build/maya-ds4",
+  "cwd": "/scratch/ss3679/project-maya",
+  "tokenizer": "/scratch/ss3679/weights/deepseek-v41-flash/UD-Q8_K_XL/maya-ds4/tokenizer",
+  "model_name": "deepseek-v4.1-flash",
+  "gpu": [0, 1],
+  "host": "127.0.0.1",
+  "port": 8080,
+  "web_ui": false,
+  "log": "/scratch/ss3679/maya-ds41-tuning/baseline/engine.log",
+  "args": [
+    "--pack", "/scratch/ss3679/weights/deepseek-v41-flash/UD-Q8_K_XL/maya-ds4",
+    "--max-context", "524288",
+    "--tp", "2",
+    "--parallel", "1",
+    "--vision", "on",
+    "--dspark", "on"
+  ],
+  "env": {
+    "MAYA_DS4_SLOT_KEEP": "1",
+    "MAYA_DS4_KEEP_THINKING": "1",
+    "MAYA_DS4_SLOT_CAP": "8",
+    "MAYA_DS4_SLOT_GB": "16",
+    "MAYA_DS4_SLOT_DIR": "/scratch/ss3679/maya-ds41-tuning/baseline/slots",
+    "MAYA_DS4_SLOT_RAM_GB": "0"
+  }
+}

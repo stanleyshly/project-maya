@@ -394,8 +394,12 @@ bool round(maya::ds4::Model& m, int tok, int room, bool spec, float conf_min, fl
     const long long pos0 = rl.on() ? (long long) m.pos() : 0;
     if (rl.on()) rl.made = -1;
     if (drafter) {
-        std::vector<int> drafts;
-        std::vector<float> conf;
+        // Each engine thread runs one round at a time. Keep the proposal buffers across
+        // rounds so decoding does not repeatedly allocate them on the host.
+        thread_local std::vector<int> drafts;
+        thread_local std::vector<float> conf;
+        drafts.clear();
+        conf.clear();
         // (the lookup's proposal first: with one, the drafter makes its first row even past the cut - the lazy head
         //  would skip it at a cut first draft, leaving none to weigh the lookup against; past it, the lazy cut)
         const int k = lk != nullptr ? lk->sfx.propose(std::min(room, m.verify_max()) - 1, lk->buf.data()) : 0;

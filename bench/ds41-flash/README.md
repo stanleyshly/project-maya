@@ -58,3 +58,20 @@ Run each control–candidate–control sequence serially with fresh slot directo
 The retrieval fixture tests 262,144 and approximately 523,264 input tokens, leaving room for a 256-token answer. Keep the one-request server up for the full-context soak and archive its draft counters, output, cache reuse and peak memory. Repeat with `profile.py serve --parallel 2 --run-dir "$work/two"` and `qualify.py retrieval --parallel 2`. Repeat full-length turns to check stability and confirm distinct concurrent requests both finish with actual accepted draft tokens. Require the same correctness and memory gates, higher aggregate throughput, and median warm resume TTFT within 3% of one request before changing the default.
 
 At the end, stop the server gracefully, wait for the engine to exit, and use `nvidia-smi --query-compute-apps=pid,used_gpu_memory --format=csv` to verify release. Keep the run logs and ledger on scratch and commit only the launch tooling and measured summary.
+
+## Stock and modified-source variants
+
+`maya-stock.json` is a native Maya config for the stock engine built from `1530120a124eafb6dc89bcb842496d705ec69977`. Its paths target this scratch workspace. The profile can write a relocated config and create the directories without launching the server.
+
+```bash
+config=$("$py" bench/ds41-flash/profile.py configure --variant stock)
+"$py" serve/server.py --engine maya --config "$config" --host 127.0.0.1
+```
+
+Use a clean worktree at the approved base for the stock compilation and build the tuning branch separately in `"$work/build-source"` with the same CMake options. The source variant retains host-side DSpark proposal vectors between decode rounds to avoid repeated allocations on the single-round path. It uses the same checkpoint, launch parameters and draft verification as stock.
+
+```bash
+"$py" bench/ds41-flash/profile.py serve --variant source
+```
+
+Run the stock–source–stock comparison with the same launch settings. Check greedy outputs and draft acceptance as well as timing. The native JSON and launcher default to stock; the source change is a benchmark candidate.

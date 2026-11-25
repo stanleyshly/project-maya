@@ -88,10 +88,11 @@ def prepare(weights, pack):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("prepare", "serve"))
+    parser.add_argument("action", choices=("prepare", "configure", "serve"))
+    parser.add_argument("--variant", choices=("stock", "source"), default="stock")
     parser.add_argument("--weights", type=Path, default=SCRATCH / "weights/deepseek-v41-flash")
-    parser.add_argument("--run-dir", type=Path, default=WORK / "baseline")
-    parser.add_argument("--exe", type=Path, default=WORK / "build/maya-ds4")
+    parser.add_argument("--run-dir", type=Path)
+    parser.add_argument("--exe", type=Path)
     parser.add_argument("--parallel", type=int, choices=(1, 2), default=1)
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--draft-cost", action="store_true")
@@ -103,31 +104,35 @@ def main():
     if args.action == "prepare":
         prepare(weights, pack)
         return
-    check_pack(pack)
-    engine = args.exe.resolve()
-    if not os.access(engine, os.X_OK) or not engine.is_file():
-        raise SystemExit(f"Engine executable unavailable: {engine}")
-    run = args.run_dir.resolve()
+    build = "build" if args.variant == "stock" else "build-source"
+    run_name = "baseline" if args.variant == "stock" else "source"
+    engine = (args.exe or WORK / build / "maya-ds4").resolve()
+    if args.action == "serve":
+        check_pack(pack)
+        if not os.access(engine, os.X_OK) or not engine.is_file():
+            raise SystemExit(f"Engine executable unavailable: {engine}")
+    run = (args.run_dir or WORK / run_name).resolve()
     slots = run / "slots"
     slots.mkdir(parents=True, exist_ok=True)
     config = run / "maya-ds4.json"
-    engine_args = ["--pack", str(pack), "--max-context", "524288", "--tp", "2",
-                   "--parallel", str(args.parallel), "--vision", "on", "--dspark", "on"]
-    env = {"MAYA_DS4_SLOT_KEEP": "1", "MAYA_DS4_KEEP_THINKING": "1",
-           "MAYA_DS4_SLOT_CAP": "8", "MAYA_DS4_SLOT_GB": "16",
-           "MAYA_DS4_SLOT_DIR": str(slots), "MAYA_DS4_SLOT_RAM_GB": "0"}
+    settings = json.loads(Path(__file__).with_name("maya-stock.json").read_text())
+    engine_args = settings["args"]
+    engine_args[engine_args.index("--pack") + 1] = str(pack)
+    engine_args[engine_args.index("--parallel") + 1] = str(args.parallel)
+    env = settings["env"]
+    env["MAYA_DS4_SLOT_DIR"] = str(slots)
     if args.draft_cost:
         env["MAYA_DS4_DRAFT_COST"] = "1"
     if args.vram_experts is not None:
         engine_args.extend(("--vram-experts", str(args.vram_experts)))
     if args.prefill_chunk is not None:
         engine_args.extend(("--prefill-chunk", str(args.prefill_chunk)))
-    config.write_text(json.dumps({
-        "exe": str(engine), "cwd": str(ROOT), "tokenizer": str(pack / "tokenizer"),
-        "model_name": "deepseek-v4.1-flash", "gpu": [0, 1], "host": "127.0.0.1",
-        "port": args.port, "web_ui": False, "log": str(run / "engine.log"),
-        "args": engine_args, "env": env,
-    }, indent=2) + "\n")
+    settings.update(exe=str(engine), cwd=str(ROOT), tokenizer=str(pack / "tokenizer"),
+                    port=args.port, log=str(run / "engine.log"))
+    config.write_text(json.dumps(settings, indent=2) + "\n")
+    if args.action == "configure":
+        print(config)
+        return
     os.execv(sys.executable, [sys.executable, str(ROOT / "serve/server.py"), "--engine", "maya",
                              "--config", str(config), "--host", "127.0.0.1",
                              "--port", str(args.port)])
