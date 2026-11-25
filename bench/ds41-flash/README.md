@@ -17,7 +17,7 @@ hf download deepseek-ai/DeepSeek-V4.1-Flash-1017 \
   model-00044-of-00048.safetensors model-00045-of-00048.safetensors model-00046-of-00048.safetensors \
   --revision 1bae0e1088993b9b82de08f59de5be5a34e42170 --local-dir "$weights/dspark"
 uv venv --python /usr/bin/python3 "$work/venv"
-UV_CACHE_DIR="$work/uv-cache" uv pip install --python "$work/venv/bin/python" jinja2 pillow psutil numpy
+UV_CACHE_DIR="$work/uv-cache" uv pip install --python "$work/venv/bin/python" jinja2 regex pillow psutil numpy
 git worktree add --detach "$work/stock-src" 1530120a124eafb6dc89bcb842496d705ec69977
 cmake -S "$work/stock-src" -B "$work/build" -DCMAKE_BUILD_TYPE=Release \
   -DMAYA_ENABLE_CUDA=ON -DCMAKE_CUDA_COMPILER=/usr/local/cuda-12.6/bin/nvcc -DCMAKE_CUDA_ARCHITECTURES=80
@@ -55,7 +55,7 @@ for check in smoke image-cache slots retrieval; do
 done
 ```
 
-The smoke test checks thinking, image recognition, tool use, and a tool-result continuation. Connect Claude Code with `ANTHROPIC_BASE_URL=http://127.0.0.1:8080 ANTHROPIC_AUTH_TOKEN=local claude --model deepseek-v4.1-flash`. Repeat the same flow with a local image and a read-only tool call in the client. The HTTP script exercises the protocol directly and emits cached/new input counts and time to first content token.
+The smoke test checks thinking, image recognition, tool use, and a tool-result continuation. Connect Claude Code with `ANTHROPIC_BASE_URL=http://127.0.0.1:8080 ANTHROPIC_AUTH_TOKEN=local CLAUDE_CODE_MAX_CONTEXT_TOKENS=524288 claude --model deepseek-v4.1-flash`. The window override prevents Claude Code from assuming a 1M context for the custom model ID. [Claude Code model configuration](https://code.claude.com/docs/en/model-config#correct-the-window-for-a-gateway-or-custom-model-id) Repeat the same flow with a local image and a read-only tool call in the client. The HTTP script exercises the protocol directly and emits cached/new input counts and time to first content token.
 
 Use a fresh slot run to verify eviction. Inspect `engine.log` after priming the ninth and tenth sessions. Require eight inactive entries in RAM after the ninth and a disk spill after the tenth. Check that each resume reads its own prefix and reports just the new suffix. After the slot run, gracefully stop with Ctrl-C or SIGTERM, record the serialized slot file sizes, and start the same profile again. Run `qualify.py restore --case 9` and require a disk restore and suffix-only prefill in the log. Record restore latency from both the engine and the streamed request. For near-512K slot size and restore time, use a separate run directory and run `qualify.py archive --leave-active --state "$work/long-prefix.json"`. Stop gracefully so the active near-full request becomes the newest disk snapshot. Record the exact bytes on disk, then start in the same directory and run `qualify.py restore-long --state "$work/long-prefix.json"`. For a RAM restore measurement, start in a fresh directory, omit `--leave-active`, and run the restore without a restart. In that mode a second request sets the near-full conversation aside before the restore.
 
