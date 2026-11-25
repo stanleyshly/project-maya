@@ -66,7 +66,7 @@ At the end, stop the server gracefully, wait for the engine to exit, and use `nv
 
 ```bash
 config=$("$py" bench/ds41-flash/profile.py configure --variant stock)
-"$py" serve/server.py --engine maya --config "$config" --host 127.0.0.1
+"$py" serve/server.py --engine maya --config "$config" --host 127.0.0.1 --port 8080
 ```
 
 The source variant retains host-side DSpark proposal vectors between decode rounds to avoid repeated allocations on the single-round path. It uses the same checkpoint, launch parameters and draft verification as stock.
