@@ -18,8 +18,9 @@ hf download deepseek-ai/DeepSeek-V4.1-Flash-1017 \
   --revision 1bae0e1088993b9b82de08f59de5be5a34e42170 --local-dir "$weights/dspark"
 uv venv --python /usr/bin/python3 "$work/venv"
 UV_CACHE_DIR="$work/uv-cache" uv pip install --python "$work/venv/bin/python" jinja2 pillow psutil numpy
-cmake -S . -B "$work/build" -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_CUDA_COMPILER=/usr/local/cuda-12.6/bin/nvcc -DCMAKE_CUDA_ARCHITECTURES=80
+git worktree add --detach "$work/stock-src" 1530120a124eafb6dc89bcb842496d705ec69977
+cmake -S "$work/stock-src" -B "$work/build" -DCMAKE_BUILD_TYPE=Release \
+  -DMAYA_ENABLE_CUDA=ON -DCMAKE_CUDA_COMPILER=/usr/local/cuda-12.6/bin/nvcc -DCMAKE_CUDA_ARCHITECTURES=80
 cmake --build "$work/build" --target maya-ds4 --parallel 8
 py="$work/venv/bin/python"
 "$py" bench/ds41-flash/profile.py prepare
@@ -68,9 +69,12 @@ config=$("$py" bench/ds41-flash/profile.py configure --variant stock)
 "$py" serve/server.py --engine maya --config "$config" --host 127.0.0.1
 ```
 
-Use a clean worktree at the approved base for the stock compilation and build the tuning branch separately in `"$work/build-source"` with the same CMake options. The source variant retains host-side DSpark proposal vectors between decode rounds to avoid repeated allocations on the single-round path. It uses the same checkpoint, launch parameters and draft verification as stock.
+The source variant retains host-side DSpark proposal vectors between decode rounds to avoid repeated allocations on the single-round path. It uses the same checkpoint, launch parameters and draft verification as stock.
 
 ```bash
+cmake -S . -B "$work/build-source" -DCMAKE_BUILD_TYPE=Release \
+  -DMAYA_ENABLE_CUDA=ON -DCMAKE_CUDA_COMPILER=/usr/local/cuda-12.6/bin/nvcc -DCMAKE_CUDA_ARCHITECTURES=80
+cmake --build "$work/build-source" --target maya-ds4 --parallel 8
 "$py" bench/ds41-flash/profile.py serve --variant source
 ```
 
