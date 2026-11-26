@@ -1,0 +1,84 @@
+{
+  "exe": "/scratch/ss3679/project-maya/build/maya-ds4",
+  "args": [
+    "--pack",
+    "/scratch/ss3679/Maya-data/models/DeepSeek-V4.1-Flash-1017-GGUF/UD-Q8_K_XL/maya-ds4",
+    "--max-context",
+    "524288",
+    "--tp",
+    "2",
+    "--ablate",
+    "/scratch/ss3679/Maya-data/models/refusal-directions/DeepSeek-V4.1-Flash-refusal-direction.gguf",
+    "--ablate-default",
+    "off",
+    "--dspark",
+    "on"
+  ],
+  "cwd": "/scratch/ss3679/project-maya",
+  "tokenizer": "/scratch/ss3679/Maya-data/models/DeepSeek-V4.1-Flash-1017-GGUF/UD-Q8_K_XL/maya-ds4/tokenizer",
+  "model_name": "deepseek-v4.1-flash",
+  "gpu": [
+    0,
+    1
+  ],
+  "sampling": {
+    "temperature": 1.0,
+    "top_p": 1.0
+  },
+  "reasoning_effort": "high",
+  "lib_dirs": [
+    "/usr/local/cuda-12.6/lib64",
+    "/usr/local/cuda-12.6/targets/x86_64-linux/lib"
+  ],
+  "port": 8080,
+  "log": "/scratch/ss3679/project-maya/maya-ds4.log",
+  "installer": {
+    "family": "deepseek",
+    "models_dir": "/scratch/ss3679/Maya-data/models",
+    "quant": "DeepSeek-V4.1-Flash-1017",
+    "ds4_quant": "gguf-q8",
+    "model_dir": "/scratch/ss3679/Maya-data/models/DeepSeek-V4.1-Flash-1017-GGUF/UD-Q8_K_XL",
+    "written": "2026-11-25 20:31",
+    "ablate": "loaded",
+    "speed_calibration": {
+      "date": "2026-11-25 20:35",
+      "version": "1.1.78",
+      "dspark_tok_s": 63.84,
+      "no_drafting_tok_s": 45.46,
+      "drafts_accepted": [
+        783,
+        1012
+      ],
+      "tokens": [
+        1297,
+        1330
+      ],
+      "kept": "dspark",
+      "kinds": {
+        "chat": [
+          45.42,
+          52.92
+        ],
+        "code": [
+          46.65,
+          71.48
+        ],
+        "tools": [
+          44.38,
+          70.9
+        ]
+      }
+    }
+  },
+  "ablate": {
+    "file": "/scratch/ss3679/Maya-data/models/refusal-directions/DeepSeek-V4.1-Flash-refusal-direction.gguf",
+    "model": "DeepSeek-V4.1-Flash",
+    "fitted_on": "Maya-S"
+  },
+  "env": {
+    "MAYA_DS4_SLOT_KEEP": "1",
+    "MAYA_DS4_KEEP_THINKING": "1",
+    "MAYA_DS4_SLOT_CAP": "8",
+    "MAYA_DS4_SLOT_GB": "16"
+  }
+}
